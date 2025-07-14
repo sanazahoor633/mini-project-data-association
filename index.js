@@ -1,5 +1,6 @@
 const express = require('express');
-const userSchema = require('./models/user')
+const userSchema = require('./models/user');
+const postSchema = require('./models/post')
 const app = express();
 require('dotenv').config();
 const PORT = process.env.PORT || 3000;
@@ -26,26 +27,96 @@ app.get('/', (req, res) => {
 app.post('/create', async (req, res) => {
     const {username, name, email, password, age} = req.body;
 
-    const salt =  await bcrypt.genSalt(10);
-    const hashpasword = await bcrypt.hash('password', salt);
-
-const token = jwt.sign(email, 'secret');
-res.cookie("token", token)
+   const user = await userSchema.findOne({email});
+if(user) {return res.status(500).send('user Already registered')}
 
 
- const userdata = await userSchema.create({
-username, name, email, password: hashpasword, age
- })
- res.send(userdata)
-//  res.json({msg: 'you are successfull'})
+    const salt = await bcrypt.genSalt(10);
+    // console.log(salt);
+    
+    const hashPassword = await bcrypt.hash(password, salt);
+    // console.log(hashPassword);
+    
+   const userData = await userSchema.create({
+        username,
+         name,
+          email, 
+          password: hashPassword,
+          age
+    })
+const token = jwt.sign({email: email, userid: userData._id}, 'secret');
+res.cookie('token',  token)
+res.send(userData)
 })
 
 app.get('/logout', (req, res) => {
     res.cookie('token', '');
-    res.redirect('/')
+    res.redirect('/login')
     
 })
 
 
+app.get('/profile', isLogedin, async (req, res) => {
+
+ let user = await userSchema.findOne({email: req.user.email}).populate("posts");
+//  console.log(user);
+ 
+  res.render('profile', {user})
+  
+    
+})
+
+
+
+app.post('/post', isLogedin, async (req, res) => {
+ let user = await userSchema.findOne({email: req.user.email});
+const {content} = req.body
+
+
+  const post = await postSchema.create({
+    user: user._id,
+    content: content
+
+  })
+    
+
+  user.posts.push(post._id);
+  await user.save();
+  res.redirect('/profile')
+})
+
+
+
+app.get('/login', (req, res) => {
+  res.render('login')
+    
+})
+
+app.post('/login', async (req, res) => {
+  const {email, password} = req.body
+
+  const user = await userSchema.findOne({email})
+  if(!user) res.status(500).send('you are not regestered')
+
+    const result = await bcrypt.compare(password, user.password);
+    if(result) { 
+      const token = jwt.sign({email: email, userid: user._id}, 'secret');
+res.cookie('token',  token)
+  res.status(200).redirect('/profile')
+    
+    }
+    else res.redirect('/login')
+})
+
+function isLogedin (req, res, next) {
+const token = req.cookies.token
+
+if(!token) return res.redirect('/login');
+else {
+  let data = jwt.verify(token, 'secret')
+  req.user = (data)
+}
+next()
+}
 
 app.listen(PORT, ()=> console.log(`server is listen on port ${PORT}`))
