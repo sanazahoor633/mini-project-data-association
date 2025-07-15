@@ -8,7 +8,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const path = require('path');
-const fs = require('fs')
+const fs = require('fs');
+const user = require('./models/user');
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
@@ -46,8 +47,12 @@ if(user) {return res.status(500).send('user Already registered')}
     })
 const token = jwt.sign({email: email, userid: userData._id}, 'secret');
 res.cookie('token',  token)
-res.send(userData)
+res.redirect('/login')
 })
+
+
+
+
 
 app.get('/logout', (req, res) => {
     res.cookie('token', '');
@@ -64,6 +69,37 @@ app.get('/profile', isLogedin, async (req, res) => {
   res.render('profile', {user})
   
     
+})
+
+
+app.get('/like/:id',  isLogedin, async (req, res) => {
+
+  let post = await postSchema.findOne({_id: req.params.id}).populate("user");
+  if(post.likes.indexOf(req.userid === -1)){
+     post.likes.push(req.user.userid)
+  } else {
+   post.likes.splice(post.likes.indexOf(req.user.userid), 1) 
+  }
+
+
+    await post.save();
+      res.redirect("/profile")
+
+})
+
+app.get('/edit/:id',  isLogedin, async (req, res) => {
+
+  let post = await postSchema.findOne({_id: req.params.id}).populate("user");
+res.render('edit', {post})
+
+})
+
+
+app.post('/update/:id',  isLogedin, async (req, res) => {
+
+  let post = await postSchema.findOneAndUpdate({_id: req.params.id}, {content: req.body.content})
+res.redirect('/profile')
+
 })
 
 
