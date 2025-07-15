@@ -10,6 +10,10 @@ name: String,
 email: String,
 password: String,
 age: Number,
+profilePicture: {
+    type: String,
+    default: "default.jpg"
+},
 posts: [
     {
         type: mongoose.Schema.Types.ObjectId,

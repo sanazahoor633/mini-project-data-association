@@ -1,25 +1,43 @@
 const express = require('express');
 const userSchema = require('./models/user');
 const postSchema = require('./models/post')
+
 const app = express();
+const upload = require('./config/multerconfig')
 require('dotenv').config();
 const PORT = process.env.PORT || 3000;
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
-const path = require('path');
 const fs = require('fs');
 const user = require('./models/user');
+const { log } = require('console');
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(express.static('public'));
 app.use(cookieParser());
 
-// fs.writeFile(path.join(__dirname, 'views', 'index.ejs'),  'created', ()=> console.log('folder has been created')
-// )
+//  const fn = crypto.randomBytes(12, (err, bytes) => {
+// console.log(bytes.toString('hex'));
+//     })
 
 
+
+
+
+app.get('/profile/upload', (req, res) => {
+    res.render('profileupload')
+});
+
+
+
+app.post('/upload', isLogedin,  upload.single('image'), async (req, res) => {
+  const user = await userSchema.findOne({email: req.user.email});
+  user.profilePicture = req.file.filename;
+  await user.save();
+  res.redirect('/profile')
+});
 
 app.get('/', (req, res) => {
     res.render('index')
@@ -75,7 +93,8 @@ app.get('/profile', isLogedin, async (req, res) => {
 app.get('/like/:id',  isLogedin, async (req, res) => {
 
   let post = await postSchema.findOne({_id: req.params.id}).populate("user");
-  if(post.likes.indexOf(req.userid === -1)){
+  const likeIndex = post.likes.indexOf(req.user.userid);
+  if(likeIndex === -1){
      post.likes.push(req.user.userid)
   } else {
    post.likes.splice(post.likes.indexOf(req.user.userid), 1) 
@@ -154,5 +173,27 @@ else {
 }
 next()
 }
+
+
+
+// app.get('/test', (req, res) => {
+//   res.render('test')
+// })
+
+
+// app.post('/upload', upload.single('image'), (req, res) => {
+// console.log(req.file);
+
+// })
+
+
+
+
+
+
+
+
+
+
 
 app.listen(PORT, ()=> console.log(`server is listen on port ${PORT}`))
